@@ -1,7 +1,7 @@
-
 import time
 from os import environ
 from pathlib import Path
+import platform
 
 from utils.auto_loader import auto_load
 from utils.errors import AssertException
@@ -28,7 +28,12 @@ class Config:
         self.ruyi_repo_branch = "main"
         self.ruyi_repo_mirrors = {}
         self.youmu_jenkins = {}
-        self.tmpdir = Path("/tmp/ruyi_reimu")
+
+        # 根据操作系统设置默认的临时目录
+        if platform.system() == 'Windows':
+            self.tmpdir = Path("C:/tmp/ruyi_reimu")
+        else:
+            self.tmpdir = Path("/tmp/ruyi_reimu")
 
     def ready(self) -> bool:
         return self._ready
@@ -91,7 +96,7 @@ class Config:
             if "tmpdir" not in sis.keys():
                 logger.info("No tmpdir configration found, use default value " + str(self.tmpdir))
             else:
-                self.tmpdir = Path(config_dict["tmpdir"])
+                self.tmpdir = Path(sis["tmpdir"])
             if "http_proxy" in sis.keys():
                 self.http_proxy = sis["http_proxy"]
                 environ["http_proxy"] = sis["http_proxy"]
@@ -108,9 +113,9 @@ class Config:
                 time.sleep(6)
                 self.tmpdir.rename(new_name)
                 logger.info("Rename done")
-                self.tmpdir.mkdir()
+                self.tmpdir.mkdir(parents=True, exist_ok=True)
         else:
-            self.tmpdir.mkdir()
+            self.tmpdir.mkdir(parents=True, exist_ok=True)
 
         t = self.tmpdir.joinpath("test_creation")
         if t.exists():
@@ -125,3 +130,4 @@ class Config:
 
 
 reimu_config = Config()
+reimu_config.load()

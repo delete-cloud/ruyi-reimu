@@ -6,8 +6,14 @@ from .errors import ParseException
 
 def auto_load(fn: str | Path) -> dict:
     s = Path(fn).suffix
-    with open(fn) as fp:
-        c = fp.read()
+    # with open(fn) as fp:
+    #     c = fp.read()
+    try:
+        with open(fn, 'r', encoding='utf-8') as fp:
+            c = fp.read()
+    except UnicodeDecodeError:
+        with open(fn, 'r', encoding='gbk') as fp:
+            c = fp.read()
 
     if s == ".json":
         import json

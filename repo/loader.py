@@ -80,6 +80,54 @@ class RepoBoardImage:
         return {"update": True}
 
 
+# class RepoGithubImage(RepoBoardImage):
+#
+#     def __init__(self, title: str, board_image: dict):
+#         super().__init__(title, board_image)
+#         github_repo = self.files[0]
+#         self.upstream_repo = github_repo.repo_name[0] + "/" + github_repo.repo_name[1]
+#         self.version_match = github_repo.version_match
+#
+#     def check(self) -> dict:
+#         logger.info("Check board image {} on github repo {}".format(self.title, self.upstream_repo))
+#         version_list = {}
+#         for f in self.files:
+#             if f.version_name in version_list.keys():
+#                 version_list[f.version_name].append(f.filename)
+#             else:
+#                 version_list[f.version_name] = [f.filename]
+#
+#         upstream_releases = gh_op.get_repo_releases(self.upstream_repo)
+#         latest_version = ""
+#         ruyi_version = ""
+#
+#         for u in upstream_releases:
+#             # get latest version
+#             # versions are sort in time,
+#             # but we cannot sort these version code
+#             # they could in invalid version format
+#             # todo: 版本排序
+#             if latest_version == "":
+#                 latest_version = u.title
+#
+#             # check assets
+#             # todo: 更好的版本匹配
+#             for v in version_list.keys():
+#                 if v == u.title:
+#                     ruyi_version = v
+#                     break
+#
+#             if ruyi_version:
+#                 break
+#
+#         return {"update": latest_version == ruyi_version,
+#                 "latest_version": latest_version,
+#                 "latest_url": "https://github.com/" + self.upstream_repo + "/releases/" + latest_version,
+#                 "current_version": ruyi_version,
+#                 "upstream_repo": "https://github.com/" + self.upstream_repo}
+
+from packaging.version import Version, InvalidVersion
+
 class RepoGithubImage(RepoBoardImage):
 
     def __init__(self, title: str, board_image: dict):
@@ -102,18 +150,18 @@ class RepoGithubImage(RepoBoardImage):
         ruyi_version = ""
 
         for u in upstream_releases:
-            # get latest version
-            # versions are sort in time,
-            # but we cannot sort these version code
-            # they could in invalid version format
+            # 获取最新版本
+            # versions are sorted by time,
+            # but we cannot sort these version codes
+            # they could be in invalid version format
             # todo: 版本排序
             if latest_version == "":
                 latest_version = u.title
 
-            # check assets
+            # 检查资产
             # todo: 更好的版本匹配
             for v in version_list.keys():
-                if v == u.title:
+                if self.version_compare(v, u.title):
                     ruyi_version = v
                     break
 
@@ -125,6 +173,15 @@ class RepoGithubImage(RepoBoardImage):
                 "latest_url": "https://github.com/" + self.upstream_repo + "/releases/" + latest_version,
                 "current_version": ruyi_version,
                 "upstream_repo": "https://github.com/" + self.upstream_repo}
+
+    def version_compare(self, version1: str, version2: str) -> bool:
+        """比较两个版本号是否相等"""
+        try:
+            return Version(version1) == Version(version2)
+        except InvalidVersion:
+            # 如果版本号不符合标准格式，直接进行字符串比较
+            return version1 == version2
+
 
 
 class RepoMirrorImage(RepoBoardImage):
@@ -356,10 +413,16 @@ class Repo:
         title = "[ruyi-reimu] Board image {} need update".format(board_image.title)
         body = "## Description\n"
 
+        logger.info("Info about the latest {}".format(info))
         # send issue
-        logger.warn("In board image {}, the latest version is {}".format(board_image.title, info["latest_version"]))
+        # logger.warn("In board image {}, the latest version is {}".format(board_image.title, info["latest_version"]))
+        # logger.warn("in ruyi upstream version is {}".format(info["current_version"]))
         body += ("\n+ In upstream repo <{}>, the latest version is [{}]({})"
                  .format(info["upstream_repo"], info["latest_version"], info["latest_url"]))
+        body += ("\n+ The current version in ruyi upstream is {}".format(info["current_version"]))
+
+        packidx = "https://github.com/ruyisdk/packages-index/tree/main/manifests/board-image" + "/" + board_image.title
+        body += ("\n+ The packages-index info is [{}]({})".format(packidx, packidx))
 
         # if len(missing_files):
         #    logger.warn("In board image {}, following files not found in upstream releases {}"
