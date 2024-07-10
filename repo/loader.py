@@ -126,8 +126,6 @@ class RepoBoardImage:
 #                 "current_version": ruyi_version,
 #                 "upstream_repo": "https://github.com/" + self.upstream_repo}
 
-from packaging.version import Version, InvalidVersion
-
 class RepoGithubImage(RepoBoardImage):
 
     def __init__(self, title: str, board_image: dict):
@@ -149,19 +147,17 @@ class RepoGithubImage(RepoBoardImage):
         latest_version = ""
         ruyi_version = ""
 
-        for u in upstream_releases:
+        # 使用字符串进行版本排序
+        sorted_releases = sorted(upstream_releases, key=lambda x: x.tag_name, reverse=True)
+
+        for u in sorted_releases:
             # 获取最新版本
-            # versions are sorted by time,
-            # but we cannot sort these version codes
-            # they could be in invalid version format
-            # todo: 版本排序
             if latest_version == "":
-                latest_version = u.title
+                latest_version = u.tag_name  # 使用 tag 进行版本比较
 
             # 检查资产
-            # todo: 更好的版本匹配
             for v in version_list.keys():
-                if self.version_compare(v, u.title):
+                if v == u.tag_name:  # 直接使用字符串进行版本比较
                     ruyi_version = v
                     break
 
@@ -170,17 +166,10 @@ class RepoGithubImage(RepoBoardImage):
 
         return {"update": latest_version == ruyi_version,
                 "latest_version": latest_version,
-                "latest_url": "https://github.com/" + self.upstream_repo + "/releases/" + latest_version,
+                "latest_url": "https://github.com/" + self.upstream_repo + "/releases/tag/" + latest_version,
                 "current_version": ruyi_version,
                 "upstream_repo": "https://github.com/" + self.upstream_repo}
 
-    def version_compare(self, version1: str, version2: str) -> bool:
-        """比较两个版本号是否相等"""
-        try:
-            return Version(version1) == Version(version2)
-        except InvalidVersion:
-            # 如果版本号不符合标准格式，直接进行字符串比较
-            return version1 == version2
 
 
 
@@ -421,7 +410,8 @@ class Repo:
                  .format(info["upstream_repo"], info["latest_version"], info["latest_url"]))
         body += ("\n+ The current version in ruyi upstream is {}".format(info["current_version"]))
 
-        packidx = "https://github.com/ruyisdk/packages-index/tree/main/manifests/board-image" + "/" + board_image.title
+        packidx = ("{}/tree/{}/manifests/board-image/{}"
+                   .format(reimu_config.ruyi_repo, reimu_config.ruyi_repo_branch, board_image.title))
         body += ("\n+ The packages-index info is [{}]({})".format(packidx, packidx))
 
         # if len(missing_files):
